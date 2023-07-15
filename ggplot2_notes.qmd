@@ -1,0 +1,258 @@
+---
+title: "Getting Started with ggplot2"
+format: html
+editor: visual
+---
+
+```{r, include = FALSE}
+library(tidyverse)
+library(janitor)
+library(broom)
+library(car)
+library(ggplot2)
+library(modelsummary)
+library(gapminder)
+```
+
+## Scatterplots
+
+###Creating a basic scatterplot
+
+ggplot uses a pipeline-like syntax with *+* rather than *\|\>*
+
+```{r}
+gapminder_2007 <- gapminder |>
+  filter(year == 2007)
+
+gapminder_2007 |> 
+  ggplot(aes(x = gdpPercap, y = lifeExp)) + 
+  geom_point()
+```
+
+*ggplot(aes(x = gdpPercap, y = lifeExp))* initializes a basic 'ggplot' object; aes maps gdpPercap to the x-coordinate and lifeExp to the y-coordinate <br> *geom_point()* is a geometric object (geom for short), it uses mapping to create a scatterplot, individual data points representing the relationship between gdpPercap and lifeExp
+
+### Plotting on the Log Scale
+
+To achieve this we pipe *scale_x\_log10()* at the end of the ggplot
+
+```{r}
+gapminder_2007 |> 
+  ggplot(aes(x = gdpPercap, y = lifeExp)) + 
+  geom_point() +
+  scale_x_log10()
+```
+
+### Titles and Axis Labels
+
+To add titles and axis labels follow the folling syntax (*labs*, *xlab*, *ylab*)
+
+```{r}
+myplot <- gapminder_2007 |>
+  ggplot(aes(x = gdpPercap, y = lifeExp)) + 
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+
+myplot +
+  labs(title = 'GDP Per Capita and Life Exp on Log Scale',
+       subtitle = 'This is the subtitle',
+       caption = 'This is the caption') + 
+  xlab('GDP / capita ($US, inflation-adjusted)') +
+  ylab('Life Expectancy (years)')
+```
+
+### Color and Size Aesthetic
+
+Additionally we have other aesthetics such as *color* (discrete variables) and *size* of data points (continuous variables).
+
+```{r}
+gapminder_2007 |> 
+  ggplot(aes(x = gdpPercap, y = lifeExp, 
+             color = continent)) + 
+  geom_point() +
+  scale_x_log10()
+
+gapminder_2007 |> 
+  ggplot(aes(x = gdpPercap, y = lifeExp, 
+             color = continent,
+             size = pop)) + 
+  geom_point() +
+  scale_x_log10()
+```
+
+Finally, we have *scale_x\_log10()* which rescale the x or y axis
+
+```{r}
+gapminder |> 
+  filter(year == 1952) |>
+  ggplot(aes(x = pop, y = lifeExp, color = continent)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10()
+```
+
+### Faceting
+
+Faceting is used when we need plots for multiple subsets. The command *facet_wrap(~ column name)* creates separate panels for each value of the column instead of putting everything on the same panel.
+
+```{r}
+gapminder |> 
+  filter(year %in% c(1952, 1972, 1992)) |> 
+  ggplot(aes(x = gdpPercap, y = lifeExp, 
+             color = continent, size = pop)) +
+  geom_point() +
+  scale_x_log10() +
+  facet_wrap(~ year)
+
+gapminder|> 
+  filter(year == 1997) |>
+  ggplot(aes(x = gdpPercap, y = lifeExp, size = pop)) + 
+  geom_point() +
+  scale_x_log10() +
+  facet_wrap(~ continent)
+```
+
+```{r}
+# Creating a sample data frame
+df <- data.frame(
+  year = c(2018, 2019, 2020, 2018, 2019, 2020),
+  value = c(10, 15, 12, 8, 9, 11),
+  category = c("A", "A", "A", "B", "B", "B")
+)
+df
+
+# Creating a line plot with facets based on year
+ggplot(df, aes(x = category, y = value, group = year)) +
+  geom_line() +
+  facet_wrap(~ year)
+```
+
+### Plotting summarized Data
+
+We first group together the year and continent, so that we can create summary stats (in this case sums) of each group, dividing the sample into year and continent the summing pop for each group. Then we draw this scatterplot out using ggplot, which creates multiple lines on a single plot because we have divided the groups into continents.
+
+```{r}
+gapminder_sum <- gapminder |>
+  mutate(popMil = pop / 100000) |>
+  group_by(year, continent) |>
+  summarize(totalpopMil = sum(popMil)) 
+gapminder_sum
+
+gapminder_sum |> 
+  ggplot(aes(x = year, y = totalpopMil, color = continent)) +
+  geom_point() +
+  ylab("Total Population in Millions")
+```
+
+We could divide this into different plots by faceting
+
+```{r}
+gapminder_sum |> 
+  ggplot(aes(x = year, y = totalpopMil, color = continent)) +
+  geom_point() +
+  ylab("Total Population in Millions") +
+  scale_y_log10() +
+  facet_wrap(~ continent)
+```
+
+## Other Plots
+
+### Line Plots
+
+To connect the dots and create a line plot we simply replace *geom_point()* with *geom_line()*
+
+```{r}
+gapminder |> 
+  mutate(popMil = pop / 1000000) |> 
+  group_by(year, continent) |>  
+  summarize(totalpopMil = sum(popMil)) |> 
+  ggplot(aes(x = year, y = totalpopMil, color = continent)) +
+  geom_line() + # <---- This is the only thing that changed!
+  ylab('Total Population (Millions)')
+```
+
+#### Excercise E
+
+**Make a scatterplot with average GPD/capita across all countries contained in gapminder on the y-axis and year on the x-axis.**
+
+To do this we need to divide the tibble into years, and take the mean all the countries' mean GDP per cap in a year (average GPD/capita across all countries). Therefore **DO NOT** include country in the *group_by* command: you want them in one "bin" to average them. 
+
+```{r}
+gapminder |> 
+  group_by(year) |>
+  summarize(AvgGDPpercap = mean(gdpPercap)) |>
+  ggplot(aes(x = year, y = AvgGDPpercap)) +
+  geom_point()
+```
+**Repeat the preceding, broken down by continent, using color to distinguish the points. Put mean GPD/capita on the log scale.**
+```{r}
+gapminder |> 
+  group_by(year, continent) |>
+  summarize(AvgGDPpercap = mean(gdpPercap)) |>
+  ggplot(aes(x = year, y = AvgGDPpercap, color = continent)) +
+  geom_point()
+```
+**Modify the last plot to include both points and lines.**
+```{r}
+gapminder |> 
+  group_by(year, continent) |>
+  summarize(AvgGDPpercap = mean(gdpPercap)) |>
+  ggplot(aes(x = year, y = AvgGDPpercap, color = continent)) +
+  geom_point() +
+  geom_line() 
+```
+
+### Histograms
+
+```{r}
+gapminder_2007 |> 
+  ggplot(aes(x = lifeExp)) +
+  geom_histogram(binwidth = 5)
+```
+
+If we wanted to do one with GDP Per Capita on 1977 data
+
+```{r}
+gapminder |>
+  filter(year == 1977) |>
+  ggplot(aes(x = gdpPercap)) +
+  geom_histogram(binwidth = 5000) 
+```
+Putting this on the log scale
+```{r}
+gapminder |>
+  filter(year == 1977) |>
+  ggplot(aes(x = gdpPercap)) +
+  geom_histogram(binwidth = 0.2) +
+  scale_x_log10()
+```
+
+We could even change the theme and rotate the box charts
+
+```{r}
+by_continent <- gapminder |>  
+  filter(year == 2007) |> 
+  group_by(continent) |> 
+  summarize(meanLifeExp = mean(lifeExp))
+
+by_continent |> 
+ggplot(aes(x = continent, y = meanLifeExp)) +
+  geom_col() +
+  coord_flip() +
+  theme_bw() # <------ see ?theme() for much more!
+```
+
+### Cleveland Dot Charts
+
+Bar charts are inferior to Cleveland dot charts. If we want to sort the variable or reorder it we use **fct_reorder(f,x)** where f is the factor variable whose levels you want to reorder, and x is the variable used for reordering the levels of f.
+```{r}
+gapminder |> 
+  filter(year == 2007, continent == "Europe") |> 
+  mutate(country = fct_reorder(country, gdpPercap)) |> 
+  ggplot(aes(x = gdpPercap, y = country)) +
+  geom_point()
+```
+
+
+
+

@@ -1,0 +1,167 @@
+---
+title: "Intro to R and dplr"
+format: html
+editor: visual
+---
+
+## Motivation for using dplr
+
+```{r, include = FALSE}
+library(tidyverse)
+
+# Load janitor package
+library(janitor)
+
+# Load broom package
+library(broom)
+
+# Load car package
+library(car)
+
+library(gapminder)
+```
+
+Suppose we have the following dataframe:
+
+```{r}
+employees <- data.frame(
+  name = c("Alice", "Bob", "Cathy", "David", "Eva", 
+           "Frank", "Grace", "Hank", "Ivy", "Jack"),
+  age = c(25, 31, 28, 40, 35, 23, 30, 45, 33, 29),
+  department = c("HR", "IT", "Finance", "IT", "HR", 
+                 "Finance", "IT", "HR", "Finance", "IT"),
+  salary = c(50000, 60000, 55000, 70000, 53000, 
+             51000, 62000, 71000, 57000, 59000)
+)
+employees
+```
+
+Now suppose we want to sort this dataframe such that only the names those who are older than 30 are displayed, the order of which is sorted via their salaries, from high to low, conventionally we have :
+
+```{r}
+over_30 <- employees[employees$age > 30, ]
+over_30_sorted <- over_30[order(over_30$salary, decreasing = TRUE), ]
+over_30_sorted[, c("name", "department", "salary")]
+```
+
+This is really complicated and hard to grasp intuitively, instead when we want to extract and sort information in "tibble" form (a data frame with some nifty extras we don't have to go into in detail right now), we can use the "pipe" operator. This makes code much easier to interpret.
+
+```{r}
+employees |> 
+  filter(age > 30) |> 
+  arrange(desc(salary)) |> 
+  select(name, department, salary)
+```
+
+## dplyr "Verbs"
+
+### filter()
+
+This function keeps only rows matching a logical condition, gets rid of all other rows that do not meet a condition: for example, if we only want to display rows that are in the year 2007 in the tibble we could use the filter() function (note we have not deleted anything):
+
+```{r}
+gapminder |> 
+  filter(year == 2007)
+```
+
+Since the original dataframe(or tibble) is not changed through piping, if we want to create a different dataframe after filtering we have to create a new tibble to store the modified tibble
+
+```{r}
+gapminder_2007_usbz <- gapminder |>
+  filter(year == 2007, country %in% c('United States', 'Brazil'))
+gapminder_2007_usbz
+```
+
+### arrange() and arrange(desc())
+
+*arrange()* orders rows by ascending order by the values of one or more columns
+
+```{r}
+gapminder |>
+  arrange(desc(lifeExp))
+```
+
+### select()
+
+*select()* filters out or select columns instead of rows from *filter()* (with a *-* sign)
+
+```{r}
+gapminder |>
+  select(pop, country, year)
+```
+
+```{r}
+gapminder |> 
+  select(-pop, -country, -year)
+```
+
+### summarize() and group_by()
+
+*summarize()* computes summary stats and collapses them in a single row
+
+```{r}
+gapminder|>
+  # syntax: result_name = f(column_name)
+  filter(year == 1977, continent == "Asia")|>
+  summarize(median_lifeExp_1977 = median(lifeExp),
+            sd_lifeExp_1977 = sd(lifeExp),
+            mean_pop = mean(pop))
+```
+
+*group_by()* enables us to then computes summary statistics across a specified group (the more detailed the specified group the more rows the function produces in the tibble)
+
+```{r}
+gapminder |> 
+  filter(year == 1977) |>
+  group_by(continent) |>
+  summarize(median_gdpPercap_1977 = median(gdpPercap))
+```
+
+### mutate()
+
+*mutate()* modifies existing columns and creates new columns. For example, if we are trying to find the population and GDP of Afghanistan in 1952, we could create some new column names using this function
+
+```{r}
+gapminder |>
+  filter(country == "Afghanistan", year == 1952) |>
+  select(-lifeExp, -continent, -year) |>
+  mutate(pop_1952 = pop / 1e6, GDP_1952 = pop * gdpPercap) |>
+  select(-pop, -gdpPercap)
+```
+
+## Understanding the Pipe
+
+The pipe *\|\>* supplies the 1st function, the function before the pipe, an argument such that
+
+```{r}
+c(1, 5, 2, 7, 2) |> 
+  mean() # empty parentheses: no other arguments
+
+c(1, 5, 2, 7, 2, NA) |> 
+  mean(na.rm = TRUE) # other function arguments
+```
+
+where *na.rm* means remove NA, which gets rid of the NA term in the previous argument before the pipe The following two are the same: Without the pipe:
+
+```{r}
+filter(gapminder, year == 2007, country == 'United States')
+```
+
+With the pipe:
+
+```{r}
+gapminder |> 
+  filter(year == 2007, country == 'United States')
+```
+
+### Excercise I
+
+Write a single pipeline that calculates the mean and standard deviation of GDP/capita by continent and year for all years after 1997, and sorts the results in ascending order by the standard deviation.
+
+```{r}
+gapminder |>
+  filter(year > 1997) |>
+  group_by(continent, year)|>
+  summarize(mean_gdpPercap = mean(gdpPercap), sd_gdpPercap = sd(gdpPercap)) |>
+  arrange(sd_gdpPercap)
+```
